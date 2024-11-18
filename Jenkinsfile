@@ -3,7 +3,7 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/22008440/FYPtesting.git'
+                git 'https://github.com/22008440-LinJingyi/FYPtesting.git'
             }
         }
         stage('Build') {
