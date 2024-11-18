@@ -6,20 +6,43 @@ pipeline {
                 git 'https://github.com/22008440-LinJingyi/FYPtesting.git'
             }
         }
-        stage('Build') {
+        stage('Build Docker Containers') {
             steps {
-                sh 'echo "Building the application..."'
+                sh 'docker-compose up -d --build'
             }
         }
-        stage('Test') {
-            steps {
-                sh 'echo "Running tests..."'
+        stage('Run Tests') {
+            parallel {
+                stage('SonarQube Scan') {
+                    steps {
+                        script {
+                            sh 'sonar-scanner'
+                        }
+                    }
+                }
+                stage('Dummy Test') {
+                    steps {
+                        script {
+                            sh 'echo "API Test Passed"'
+                        }
+                    }
+                }
             }
         }
         stage('Deploy') {
             steps {
-                sh 'echo "Deploying application..."'
+                sh 'docker-compose up -d'
             }
+        }
+        stage('Approval') {
+            steps {
+                input 'Do you approve the deployment?'
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Deployment successful!'
         }
     }
 }
