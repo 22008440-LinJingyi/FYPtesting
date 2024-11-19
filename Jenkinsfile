@@ -3,7 +3,9 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                git 'https://github.com/22008440-LinJingyi/FYPtesting.git'
+                deleteDir()  // Clean up workspace
+                git url: 'https://github.com/22008440-LinJingyi/FYPtesting.git', branch: 'main', credentialsId: 'github-fyp'
+                sh 'git status'  // Optional: Check out git status for debugging
             }
         }
         stage('Build Docker Containers') {
@@ -43,6 +45,12 @@ pipeline {
     post {
         success {
             echo 'Deployment successful!'
+        }
+        failure {
+            echo 'Deployment failed.'
+        }
+        always {
+            echo 'Cleaning up after the build.'
         }
     }
 }
