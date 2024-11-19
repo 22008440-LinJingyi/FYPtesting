@@ -8,11 +8,7 @@ pipeline {
                 sh 'git status'  // Optional: Check out git status for debugging
             }
         }
-        stage('Build Docker Containers') {
-            steps {
-                sh 'docker-compose up -d --build'
-            }
-        }
+       
         stage('Run Tests') {
             parallel {
                 stage('SonarQube Scan') {
