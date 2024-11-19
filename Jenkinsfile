@@ -3,9 +3,8 @@ pipeline {
     stages {
         stage('Clone Repository') {
             steps {
-                deleteDir()  // Clean up workspace
-                git url: 'https://github.com/22008440-LinJingyi/FYPtesting.git', branch: 'main', credentialsId: 'github-fyp'
-                sh 'git status'  // Optional: Check out git status for debugging
+                git branch: 'main',
+                    url: 'https://github.com/22008440-LinJingyi/FYPtesting.git'
             }
         }
        
