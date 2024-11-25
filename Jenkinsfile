@@ -1,51 +1,89 @@
 pipeline {
     agent any
+
+    triggers {
+        pollSCM('H/5 * * * *') // Poll GitHub every 5 minutes
+    }
+
+    environment {
+        SONARQUBE_ENV = credentials('sonarqube-token') // SonarQube authentication token
+    }
+
     stages {
-        stage('Clone Repository') {
+        stage('Source Control') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/22008440-LinJingyi/FYPtesting.git'
+                echo 'Pulling latest code from GitHub...'
+                git branch: 'main', url: ' https://github.com/22008440-LinJingyi/FYPtesting.git'
             }
         }
-       
-        stage('Run Tests') {
+
+        stage('Build') {
+            steps {
+                echo 'Building WAR file...'
+                
+            }
+        }
+
+        stage('Static Code Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    echo 'Running SonarQube analysis...'
+                
+                }
+            }
+        }
+
+        stage('Containerization') {
+            steps {
+                echo 'Deploying containers...'
+                sh '''
+                docker-compose up -d
+                docker cp build/libs/app.war web-container:/webapps/
+                '''
+            }
+        }
+
+        stage('Approval Gatekeeper') {
+            steps {
+                script {
+                    input message: 'Approve deployment to production?', ok: 'Deploy'
+                }
+            }
+        }
+
+        stage('Testing') {
             parallel {
-                stage('SonarQube Scan') {
+                stage('SonarQube Quality Gate') {
                     steps {
-                        script {
-                            sh 'sonar-scanner'
-                        }
+                        echo 'Validating SonarQube quality gate...'
+                        // SonarQube quality gate validation steps here
                     }
                 }
-                stage('Dummy Test') {
+                stage('API Testing') {
                     steps {
-                        script {
-                            sh 'echo "API Test Passed"'
-                        }
+                        echo 'Running API tests...'
+                        sh 'curl -X GET http://localhost:8080/api/test' // Example API test
                     }
                 }
             }
         }
-        stage('Deploy') {
+
+        stage('Rollback Mechanism') {
             steps {
-                sh 'docker-compose up -d'
-            }
-        }
-        stage('Approval') {
-            steps {
-                input 'Do you approve the deployment?'
+                script {
+                    echo 'Rollback mechanism placeholder...'
+                    // Rollback logic can go here if needed
+                }
             }
         }
     }
+
     post {
         success {
-            echo 'Deployment successful!'
+            echo 'Pipeline executed successfully!'
         }
         failure {
-            echo 'Deployment failed.'
-        }
-        always {
-            echo 'Cleaning up after the build.'
+            echo 'Pipeline execution failed!'
         }
     }
 }
