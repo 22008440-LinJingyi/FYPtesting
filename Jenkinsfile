@@ -1,3 +1,8 @@
+properties([
+    pipelineTriggers([
+        pollSCM('H/5 * * * *') // Adjust schedule as needed, this triggers polling every 5 minutes
+    ])
+])
 pipeline {
     agent any
 
