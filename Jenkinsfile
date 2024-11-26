@@ -29,10 +29,8 @@ pipeline {
                     echo "Building and running Docker container"
                     
                     // Build Docker image
-                 
                     
                     // Run Docker container
-                    
                 }
             }
         }
@@ -44,7 +42,6 @@ pipeline {
                         script {
                             echo "Running Unit Tests"
                             // Simulate running unit tests
-                          
                         }
                     }
                 }
@@ -53,7 +50,6 @@ pipeline {
                         script {
                             echo "Running Integration Tests"
                             // Simulate running integration tests
-                       
                         }
                     }
                 }
@@ -62,21 +58,25 @@ pipeline {
                         script {
                             echo "Running SonarQube Analysis"
                             // Simulate SonarQube analysis (replace with actual SonarScanner command)
-                           
                         }
                     }
                 }
             }
         }
 
-
+        stage('Approval Gatekeeper') {
+            steps {
+                script {
+                    echo "Simulated approval for testing purposes."
+                    // enable manual approval in the future?
+                }
+            }
+        }
 
         stage('Deploy') {
             steps {
                 script {
-                    echo "Deploying application"
-                    // Example: Deployment steps to a server
-                   
+                    echo "Deploying application..."
                 }
             }
         }
@@ -86,8 +86,7 @@ pipeline {
         always {
             script {
                 echo "Pipeline completed"
-                // Clean up Docker container and workspace
-             
+                cleanWs() // Clean workspace after each run
             }
         }
 
