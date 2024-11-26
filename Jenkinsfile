@@ -1,89 +1,106 @@
 pipeline {
     agent any
 
-    triggers {
-        pollSCM('H/5 * * * *') // Poll GitHub every 5 minutes
-    }
-
-    environment {
-        SONARQUBE_ENV = credentials('sonarqube-token') // SonarQube authentication token
-    }
-
     stages {
-        stage('Source Control') {
+        stage('Clone Repository') {
             steps {
-                echo 'Pulling latest code from GitHub...'
-                git branch: 'main', url: ' https://github.com/22008440-LinJingyi/FYPtesting.git'
+                script {
+                    // Clone the GitHub repository
+                    git url: 'https://github.com/22008440-LinJingyi/FYPtesting.git', branch: 'main'
+
+                    // Output the current workspace path to confirm the clone
+                    echo "Workspace path: ${pwd()}"
+                }
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Building WAR file...'
-                
-            }
-        }
-
-        stage('Static Code Analysis') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    echo 'Running SonarQube analysis...'
-                
+                script {
+                    // Simulate a build process
+                    echo "Building the web application"
                 }
             }
         }
 
-        stage('Containerization') {
-            steps {
-                echo 'Deploying containers...'
-                sh '''
-                docker-compose up -d
-                docker cp build/libs/app.war web-container:/webapps/
-                '''
-            }
-        }
-
-        stage('Approval Gatekeeper') {
+        stage('Run Docker Container') {
             steps {
                 script {
-                    input message: 'Approve deployment to production?', ok: 'Deploy'
+                    echo "Building and running Docker container"
+                    
+                    // Build Docker image
+                 
+                    
+                    // Run Docker container
+                    
                 }
             }
         }
 
-        stage('Testing') {
+        stage('Parallel Testing') {
             parallel {
-                stage('SonarQube Quality Gate') {
+                stage('Unit Tests') {
                     steps {
-                        echo 'Validating SonarQube quality gate...'
-                        // SonarQube quality gate validation steps here
+                        script {
+                            echo "Running Unit Tests"
+                            // Simulate running unit tests
+                          
+                        }
                     }
                 }
-                stage('API Testing') {
+                stage('Integration Tests') {
                     steps {
-                        echo 'Running API tests...'
-                        sh 'curl -X GET http://localhost:8080/api/test' // Example API test
+                        script {
+                            echo "Running Integration Tests"
+                            // Simulate running integration tests
+                       
+                        }
+                    }
+                }
+                stage('Code Quality Analysis') {
+                    steps {
+                        script {
+                            echo "Running SonarQube Analysis"
+                            // Simulate SonarQube analysis (replace with actual SonarScanner command)
+                           
+                        }
                     }
                 }
             }
         }
 
-        stage('Rollback Mechanism') {
+
+
+        stage('Deploy') {
             steps {
                 script {
-                    echo 'Rollback mechanism placeholder...'
-                    // Rollback logic can go here if needed
+                    echo "Deploying application"
+                    // Example: Deployment steps to a server
+                   
                 }
             }
         }
     }
 
     post {
-        success {
-            echo 'Pipeline executed successfully!'
+        always {
+            script {
+                echo "Pipeline completed"
+                // Clean up Docker container and workspace
+             
+            }
         }
+
+        success {
+            script {
+                echo "Pipeline succeeded"
+            }
+        }
+
         failure {
-            echo 'Pipeline execution failed!'
+            script {
+                echo "Pipeline failed"
+            }
         }
     }
 }
