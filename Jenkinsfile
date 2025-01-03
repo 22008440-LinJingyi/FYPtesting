@@ -67,7 +67,7 @@ pipeline {
                         sh """
                         docker stop ${DOCKER_CONTAINER} || true
                         docker rm ${DOCKER_CONTAINER} || true
-                        docker run -d --name ${DOCKER_CONTAINER} -p 8080:80 ${DOCKER_IMAGE}
+                        docker run -d --name ${DOCKER_CONTAINER} -p 8081:80 ${DOCKER_IMAGE}
                         """
                         echo "Container deployed: ${DOCKER_CONTAINER}"
                     } else {
