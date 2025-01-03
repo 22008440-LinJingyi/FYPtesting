@@ -10,10 +10,6 @@ pipeline {
         LOG_FOLDER = 'pipeline-logs'
     }
 
-    tools {
-        sonar 'SonarScanner' // The SonarScanner tool configured in Jenkins
-    }
-
     stages {
         stage('Checkout Code') {
             steps {
