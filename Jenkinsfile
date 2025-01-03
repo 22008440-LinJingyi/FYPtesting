@@ -1,110 +1,117 @@
-properties([
-    pipelineTriggers([
-        pollSCM('H/5 * * * *') // Adjust schedule as needed, this triggers polling every 5 minutes
-    ])
-])
 pipeline {
     agent any
 
+    environment {
+        SONAR_HOST = 'http://localhost:9000'
+        SONAR_PROJECT_KEY = 'FYPtesting'
+        DOCKER_IMAGE = 'fyp-app:1.0'
+        DOCKER_CONTAINER = 'fyp-app-container'
+        GIT_REPO = 'https://github.com/22008440-LinJingyi/FYPtesting.git'
+        LOG_FOLDER = 'pipeline-logs'
+    }
+
+    tools {
+        sonar 'SonarScanner' // The SonarScanner tool configured in Jenkins
+    }
+
     stages {
-        stage('Clone Repository') {
+        stage('Checkout Code') {
             steps {
-                script {
-                    // Clone the GitHub repository
-                    git url: 'https://github.com/22008440-LinJingyi/FYPtesting.git', branch: 'main'
-
-                    // Output the current workspace path to confirm the clone
-                    echo "Workspace path: ${pwd()}"
-                }
+                git branch: 'main', url: "${GIT_REPO}"
+                echo "Code checked out from the repository."
             }
         }
 
-        stage('Build') {
-            steps {
-                script {
-                    // Simulate a build process
-                    echo "Building the web application"
-                }
-            }
-        }
-
-        stage('Run Docker Container') {
-            steps {
-                script {
-                    echo "Building and running Docker container"
-                    
-                    // Build Docker image
-                    
-                    // Run Docker container
-                }
-            }
-        }
-
-        stage('Parallel Testing') {
+        stage('Run Parallel Tests') {
             parallel {
-                stage('Unit Tests') {
+                stage('Run SonarQube Analysis') {
                     steps {
                         script {
-                            echo "Running Unit Tests"
-                            // Simulate running unit tests
+                            withSonarQubeEnv('SonarQube') {
+                                sh 'sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST}'
+                            }
                         }
                     }
                 }
-                stage('Integration Tests') {
+
+                stage('Dummy API Test') {
                     steps {
-                        script {
-                            echo "Running Integration Tests"
-                            // Simulate running integration tests
-                        }
-                    }
-                }
-                stage('Code Quality Analysis') {
-                    steps {
-                        script {
-                            echo "Running SonarQube Analysis"
-                            // Simulate SonarQube analysis (replace with actual SonarScanner command)
-                        }
+                        echo "Running dummy API test..."
+                        sh "curl -X GET http://localhost:8080/health || true"
+                        echo "Dummy API test completed."
                     }
                 }
             }
         }
 
-        stage('Approval Gatekeeper') {
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${DOCKER_IMAGE} ."
+                echo "Docker image built: ${DOCKER_IMAGE}"
+            }
+        }
+
+        stage('Gatekeeper Approval') {
             steps {
                 script {
-                    echo "Simulated approval for testing purposes."
-                    // enable manual approval in the future?
+                    def deployStatus = input message: 'Proceed to deploy or rollback?', ok: 'Proceed', parameters: [
+                        choice(name: 'DEPLOY_STATUS', choices: ['good', 'bad'], description: 'Deployment Status')
+                    ]
+                    env.DEPLOY_STATUS = deployStatus
                 }
             }
         }
 
-        stage('Deploy') {
+        stage('Deploy or Rollback') {
             steps {
                 script {
-                    echo "Deploying application..."
+                    if (env.DEPLOY_STATUS == 'good') {
+                        echo "Deployment approved. Proceeding..."
+                        sh """
+                        docker stop ${DOCKER_CONTAINER} || true
+                        docker rm ${DOCKER_CONTAINER} || true
+                        docker run -d --name ${DOCKER_CONTAINER} -p 8080:80 ${DOCKER_IMAGE}
+                        """
+                        echo "Container deployed: ${DOCKER_CONTAINER}"
+                    } else {
+                        echo "Rollback initiated."
+                        sh './rollback.sh'
+                    }
+                }
+            }
+        }
+
+        stage('Clean Old Containers') {
+            steps {
+                sh './cleanup-containers.sh'
+                echo "Old containers and networks cleaned."
+            }
+        }
+
+        stage('Log Results to GitHub') {
+            steps {
+                script {
+                    sh """
+                    mkdir -p ${LOG_FOLDER}
+                    echo 'Pipeline execution log' > ${LOG_FOLDER}/log.txt
+                    git config --global user.email "you@example.com"
+                    git config --global user.name "Your Name"
+                    git add ${LOG_FOLDER}
+                    git commit -m 'Pipeline logs updated'
+                    git push
+                    """
+                    echo "Logs uploaded to GitHub."
                 }
             }
         }
     }
 
     post {
-        always {
-            script {
-                echo "Pipeline completed"
-                cleanWs() // Clean workspace after each run
-            }
-        }
-
         success {
-            script {
-                echo "Pipeline succeeded"
-            }
+            echo 'Pipeline executed successfully!'
         }
-
         failure {
-            script {
-                echo "Pipeline failed"
-            }
+            echo 'Pipeline failed. Check logs in GitHub.'
         }
     }
 }
