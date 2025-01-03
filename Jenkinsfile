@@ -24,7 +24,7 @@ pipeline {
                     steps {
                         script {
                             withSonarQubeEnv('SonarQube') {
-                                sh 'sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST}'
+                                sh "sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST}"
                             }
                         }
                     }
