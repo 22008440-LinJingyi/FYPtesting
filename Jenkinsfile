@@ -74,12 +74,13 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Deploying production containers..."
+                    echo "Cleaning up any conflicting networks..."
                     sh """
                     docker network ls | grep container-files_container_network && \
                     docker network rm container-files_container_network || echo 'No existing network to remove'
-                    docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d
                     """
+                    echo "Deploying production containers..."
+                    sh "docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d"
                 }
             }
         }
