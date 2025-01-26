@@ -2,11 +2,14 @@ pipeline {
     agent any
 
     environment {
+        SONAR_HOST = 'http://localhost:9000'
+        SONAR_PROJECT_KEY = 'FYPtesting'
         DOCKER_WEB_IMAGE = 'apache-image'
         DOCKER_DB_IMAGE = 'mysql-image'
         WEB_CONTAINER = 'apache-container'
         DB_CONTAINER = 'mysql-container'
         GIT_REPO = 'https://github.com/22008440-LinJingyi/FYPtesting.git'
+        LOG_FOLDER = 'pipeline-logs'
         CONTAINER_FILES_PATH = '/var/lib/jenkins/workspace/container-files' // Full path to container files
     }
 
@@ -15,10 +18,10 @@ pipeline {
             steps {
                 script {
                     sh "mkdir -p ${CONTAINER_FILES_PATH}"
-                    if (!fileExists("${CONTAINER_FILES_PATH}/xampp-linux-x64-8.2.12-0-installer.run")) {
-                        sh "wget https://sourceforge.net/projects/xampp/files/latest/download -O ${CONTAINER_FILES_PATH}/xampp-linux-x64-8.2.12-0-installer.run"
+                    if (fileExists("${CONTAINER_FILES_PATH}/xampp-linux-x64-8.2.12-0-installer.run")) {
+                        echo "XAMPP installer already exists at ${CONTAINER_FILES_PATH}/xampp-linux-x64-8.2.12-0-installer.run."
                     } else {
-                        echo "XAMPP installer already exists."
+                        sh "wget https://sourceforge.net/projects/xampp/files/latest/download -O ${CONTAINER_FILES_PATH}/xampp-linux-x64-8.2.12-0-installer.run"
                     }
                 }
             }
@@ -37,14 +40,18 @@ pipeline {
             parallel {
                 stage('Build Apache Image') {
                     steps {
-                        sh "docker build -t ${DOCKER_WEB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.web ${CONTAINER_FILES_PATH}"
-                        echo "Apache image built successfully."
+                        script {
+                            sh "docker build -t ${DOCKER_WEB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.web ${CONTAINER_FILES_PATH}"
+                            echo "Apache image built successfully."
+                        }
                     }
                 }
                 stage('Build MySQL Image') {
                     steps {
-                        sh "docker build -t ${DOCKER_DB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.db ${CONTAINER_FILES_PATH}"
-                        echo "MySQL image built successfully."
+                        script {
+                            sh "docker build -t ${DOCKER_DB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.db ${CONTAINER_FILES_PATH}"
+                            echo "MySQL image built successfully."
+                        }
                     }
                 }
             }
@@ -68,7 +75,11 @@ pipeline {
             steps {
                 script {
                     echo "Deploying production containers..."
-                    sh "docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d"
+                    sh """
+                    docker network ls | grep container-files_container_network && \
+                    docker network rm container-files_container_network || echo 'No existing network to remove'
+                    docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d
+                    """
                 }
             }
         }
