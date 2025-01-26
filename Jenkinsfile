@@ -70,22 +70,18 @@ pipeline {
 
         stage('Deploy Containers') {
     when {
-        expression { env.DEPLOY_STATUS == 'good' }
-    }
-    steps {
-        script {
-            echo "Cleaning up any conflicting networks..."
-            sh """
-            if docker network ls | grep -q 'container-files_container_network'; then
-                docker network rm container-files_container_network
-            fi
-            """
-            echo "Deploying production containers..."
-          sh "docker-compose -f /var/lib/jenkins/container-files/docker-compose.yml up -d"
-
+                expression { env.DEPLOY_STATUS == 'good' }
+            }
+            steps {
+                script {
+                    echo "Cleaning up any conflicting networks..."
+                    sh """
+                    docker network ls | grep -q container-files_container_network && docker network rm container-files_container_network || echo 'No conflicting network to remove'
+                    docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d
+                    """
+                }
+            }
         }
-    }
-}
 
 
         stage('Rollback') {
