@@ -68,8 +68,8 @@ pipeline {
             }
         }
 
-        stage('Deploy Containers') {
-    when {
+          stage('Deploy Containers') {
+            when {
                 expression { env.DEPLOY_STATUS == 'good' }
             }
             steps {
@@ -77,6 +77,7 @@ pipeline {
                     echo "Cleaning up any conflicting networks..."
                     sh """
                     docker network ls | grep -q container-files_container_network && docker network rm container-files_container_network || echo 'No conflicting network to remove'
+                    docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml down
                     docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d
                     """
                 }
