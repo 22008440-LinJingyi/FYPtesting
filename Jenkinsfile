@@ -8,7 +8,7 @@ pipeline {
         DOCKER_DB_IMAGE = 'mysql-image'
         WEB_CONTAINER = 'apache-container'
         DB_CONTAINER = 'mysql-container'
-        GIT_REPO = 'https://github.com/22018950-LeeHanLin/FinalYearProj.git'
+        GIT_REPO = 'https://github.com/22008440-LinJingyi/FYPtesting.git'
         GIT_USERNAME = 'githubadmin'
         LOG_FOLDER = 'pipeline-logs'
         CONTAINER_FILES_PATH = '/var/lib/jenkins/workspace/container-files' // Full path to container files
