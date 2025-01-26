@@ -9,35 +9,22 @@ pipeline {
         WEB_CONTAINER = 'apache-container'
         DB_CONTAINER = 'mysql-container'
         GIT_REPO = 'https://github.com/22008440-LinJingyi/FYPtesting.git'
-        GIT_USERNAME = 'githubadmin'
-        LOG_FOLDER = 'pipeline-logs'
-        CONTAINER_FILES_PATH = '/var/lib/jenkins/workspace/container-files' // Full path to container files
-        XAMPP_INSTALLER_URL = 'https://sourceforge.net/projects/xampp/files/latest/download'
-        XAMPP_INSTALLER_FILE = 'xampp-linux-x64-8.2.12-0-installer.run'
-    }
-
-    triggers {
-        pollSCM('* * * * *') // Polling every minute
+        CONTAINER_FILES_PATH = '/var/lib/jenkins/workspace/container-files'
+        XAMPP_INSTALLER = "${CONTAINER_FILES_PATH}/xampp-linux-x64-8.2.12-0-installer.run"
     }
 
     stages {
         stage('Prepare Environment') {
             steps {
                 script {
-                    // Ensure container files directory exists
                     sh "mkdir -p ${CONTAINER_FILES_PATH}"
-
-                    // Check if the XAMPP installer is present
-                    def installerPath = "${CONTAINER_FILES_PATH}/${XAMPP_INSTALLER_FILE}"
-                    if (!fileExists(installerPath)) {
-                        echo "Downloading XAMPP installer..."
+                    if (!fileExists(XAMPP_INSTALLER)) {
                         sh """
-                        wget ${XAMPP_INSTALLER_URL} -O ${installerPath}
-                        chmod +x ${installerPath}
-                        chown jenkins:docker ${installerPath}
+                        wget -O ${XAMPP_INSTALLER} https://sourceforge.net/projects/xampp/files/latest/download &&
+                        chmod +x ${XAMPP_INSTALLER}
                         """
                     } else {
-                        echo "XAMPP installer already exists at ${installerPath}."
+                        echo "XAMPP installer already exists at ${XAMPP_INSTALLER}."
                     }
                 }
             }
@@ -47,6 +34,7 @@ pipeline {
             steps {
                 script {
                     git branch: 'main',
+                        url: "${GIT_REPO}"
                     echo "Code checked out from the repository."
                 }
             }
@@ -56,49 +44,34 @@ pipeline {
             parallel {
                 stage('Build Apache Image') {
                     steps {
-                        sh "docker build -t ${DOCKER_WEB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.web ${CONTAINER_FILES_PATH}"
-                        echo "Apache image built: ${DOCKER_WEB_IMAGE}"
+                        script {
+                            sh "docker build -t ${DOCKER_WEB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.web ${CONTAINER_FILES_PATH}"
+                            echo "Apache image built successfully."
+                        }
                     }
                 }
                 stage('Build MySQL Image') {
                     steps {
-                        sh "docker build -t ${DOCKER_DB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.db ${CONTAINER_FILES_PATH}"
-                        echo "MySQL image built: ${DOCKER_DB_IMAGE}"
+                        script {
+                            sh "docker build -t ${DOCKER_DB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.db ${CONTAINER_FILES_PATH}"
+                            echo "MySQL image built successfully."
+                        }
                     }
-                }
-            }
-        }
-
-        stage('Gatekeeper Approval') {
-            steps {
-                script {
-                    def deployStatus = input message: 'Proceed to deploy or rollback?', ok: 'Proceed', parameters: [
-                        choice(name: 'DEPLOY_STATUS', choices: ['good', 'bad'], description: 'Deployment Status')
-                    ]
-                    env.DEPLOY_STATUS = deployStatus
                 }
             }
         }
 
         stage('Deploy Containers') {
-            when {
-                expression { env.DEPLOY_STATUS == 'good' }
-            }
             steps {
                 script {
-                    echo "Deploying production containers..."
-                    sh "docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d"
+                    try {
+                        sh "docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d"
+                        echo "Containers deployed successfully."
+                    } catch (Exception e) {
+                        echo "Deployment failed. Proceeding to rollback."
+                        sh "${CONTAINER_FILES_PATH}/rollback.sh"
+                    }
                 }
-            }
-        }
-
-        stage('Rollback') {
-            when {
-                expression { env.DEPLOY_STATUS == 'bad' }
-            }
-            steps {
-                sh "${CONTAINER_FILES_PATH}/rollback.sh"
-                echo "Rollback executed."
             }
         }
     }
@@ -108,7 +81,7 @@ pipeline {
             echo 'Pipeline executed successfully!'
         }
         failure {
-            echo 'Pipeline failed. Check logs in Jenkins.'
+            echo 'Pipeline failed. Check the logs for more details.'
         }
     }
 }
