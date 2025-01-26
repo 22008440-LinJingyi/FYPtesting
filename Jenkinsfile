@@ -81,7 +81,8 @@ pipeline {
             fi
             """
             echo "Deploying production containers..."
-            sh "docker-compose -f /home/fypuser/fyp/Jingyi/container-files/docker-compose.yml up -d"
+          sh "docker-compose -f /var/lib/jenkins/container-files/docker-compose.yml up -d"
+
         }
     }
 }
