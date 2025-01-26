@@ -4,47 +4,68 @@ pipeline {
     environment {
         SONAR_HOST = 'http://localhost:9000'
         SONAR_PROJECT_KEY = 'FYPtesting'
-        DOCKER_IMAGE = 'fyp-app:1.0'
-        DOCKER_CONTAINER = 'fyp-app-container'
-        GIT_REPO = 'https://github.com/22008440-LinJingyi/FYPtesting.git'
+        DOCKER_WEB_IMAGE = 'apache-image'
+        DOCKER_DB_IMAGE = 'mysql-image'
+        WEB_CONTAINER = 'apache-container'
+        DB_CONTAINER = 'mysql-container'
+        GIT_REPO = 'https://github.com/22018950-LeeHanLin/FinalYearProj.git'
+        GIT_USERNAME = 'githubadmin'
         LOG_FOLDER = 'pipeline-logs'
+        CONTAINER_FILES_PATH = '/var/lib/jenkins/workspace/container-files' // Full path to container files
+        XAMPP_INSTALLER_URL = 'https://sourceforge.net/projects/xampp/files/latest/download'
+        XAMPP_INSTALLER_FILE = 'xampp-linux-x64-8.2.12-0-installer.run'
+    }
+
+    triggers {
+        pollSCM('* * * * *') // Polling every minute
     }
 
     stages {
+        stage('Prepare Environment') {
+            steps {
+                script {
+                    // Ensure container files directory exists
+                    sh "mkdir -p ${CONTAINER_FILES_PATH}"
+
+                    // Check if the XAMPP installer is present
+                    def installerPath = "${CONTAINER_FILES_PATH}/${XAMPP_INSTALLER_FILE}"
+                    if (!fileExists(installerPath)) {
+                        echo "Downloading XAMPP installer..."
+                        sh """
+                        wget ${XAMPP_INSTALLER_URL} -O ${installerPath}
+                        chmod +x ${installerPath}
+                        chown jenkins:docker ${installerPath}
+                        """
+                    } else {
+                        echo "XAMPP installer already exists at ${installerPath}."
+                    }
+                }
+            }
+        }
+
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: "${GIT_REPO}"
-                echo "Code checked out from the repository."
+                script {
+                    git branch: 'main',
+                    echo "Code checked out from the repository."
+                }
             }
         }
 
-        stage('Run Parallel Tests') {
+        stage('Build and Test Containers') {
             parallel {
-                stage('Run SonarQube Analysis') {
+                stage('Build Apache Image') {
                     steps {
-                        script {
-                            withSonarQubeEnv('SonarQube') {
-                                def scannerHome = tool name: 'SonarScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-                                sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=${SONAR_PROJECT_KEY} -Dsonar.host.url=${SONAR_HOST}"
-                            }
-                        }
+                        sh "docker build -t ${DOCKER_WEB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.web ${CONTAINER_FILES_PATH}"
+                        echo "Apache image built: ${DOCKER_WEB_IMAGE}"
                     }
                 }
-
-                stage('Dummy API Test') {
+                stage('Build MySQL Image') {
                     steps {
-                        echo "Running dummy API test..."
-                        sh "curl -X GET http://localhost:8080/health || true"
-                        echo "Dummy API test completed."
+                        sh "docker build -t ${DOCKER_DB_IMAGE} -f ${CONTAINER_FILES_PATH}/Dockerfile.db ${CONTAINER_FILES_PATH}"
+                        echo "MySQL image built: ${DOCKER_DB_IMAGE}"
                     }
                 }
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                sh "docker build -t ${DOCKER_IMAGE} ."
-                echo "Docker image built: ${DOCKER_IMAGE}"
             }
         }
 
@@ -59,46 +80,25 @@ pipeline {
             }
         }
 
-        stage('Deploy or Rollback') {
+        stage('Deploy Containers') {
+            when {
+                expression { env.DEPLOY_STATUS == 'good' }
+            }
             steps {
                 script {
-                    if (env.DEPLOY_STATUS == 'good') {
-                        echo "Deployment approved. Proceeding..."
-                        sh """
-                        docker stop ${DOCKER_CONTAINER} || true
-                        docker rm ${DOCKER_CONTAINER} || true
-                        docker run -d --name ${DOCKER_CONTAINER} -p 8080:80 ${DOCKER_IMAGE}
-                        """
-                        echo "Container deployed: ${DOCKER_CONTAINER}"
-                    } else {
-                        echo "Rollback initiated."
-                        sh './rollback.sh'
-                    }
+                    echo "Deploying production containers..."
+                    sh "docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d"
                 }
             }
         }
 
-        stage('Clean Old Containers') {
-            steps {
-                sh './cleanup-containers.sh'
-                echo "Old containers and networks cleaned."
+        stage('Rollback') {
+            when {
+                expression { env.DEPLOY_STATUS == 'bad' }
             }
-        }
-
-        stage('Log Results to GitHub') {
             steps {
-                script {
-                    sh """
-                    mkdir -p ${LOG_FOLDER}
-                    echo 'Pipeline execution log' > ${LOG_FOLDER}/log.txt
-                    git config --global user.email "you@example.com"
-                    git config --global user.name "Your Name"
-                    git add ${LOG_FOLDER}
-                    git commit -m 'Pipeline logs updated'
-                    git push
-                    """
-                    echo "Logs uploaded to GitHub."
-                }
+                sh "${CONTAINER_FILES_PATH}/rollback.sh"
+                echo "Rollback executed."
             }
         }
     }
@@ -108,7 +108,7 @@ pipeline {
             echo 'Pipeline executed successfully!'
         }
         failure {
-            echo 'Pipeline failed. Check logs in GitHub.'
+            echo 'Pipeline failed. Check logs in Jenkins.'
         }
     }
 }
