@@ -23,22 +23,7 @@ pipeline {
                     } else {
                         sh "wget https://sourceforge.net/projects/xampp/files/latest/download -O ${CONTAINER_FILES_PATH}/xampp-linux-x64-8.2.12-0-installer.run"
                     }
-                }
-            }
-        }
-
-        stage('Install Docker Compose') {
-            steps {
-                script {
-                    sh """
-                    if ! command -v docker-compose > /dev/null; then
-                        echo 'Installing docker-compose...'
-                        echo '${env.JENKINS_PASSWORD}' | sudo -S apt update
-                        echo '${env.JENKINS_PASSWORD}' | sudo -S apt install -y docker-compose
-                    else
-                        echo 'docker-compose is already installed.'
-                    fi
-                    """
+                    sh "sudo apt update && sudo apt install -y docker-compose"
                 }
             }
         }
