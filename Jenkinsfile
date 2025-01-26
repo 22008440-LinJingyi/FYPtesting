@@ -27,6 +27,22 @@ pipeline {
             }
         }
 
+        stage('Install Docker Compose') {
+            steps {
+                script {
+                    sh """
+                    if ! command -v docker-compose > /dev/null; then
+                        echo 'Installing docker-compose...'
+                        sudo apt update
+                        sudo apt install -y docker-compose
+                    else
+                        echo 'docker-compose is already installed.'
+                    fi
+                    """
+                }
+            }
+        }
+
         stage('Checkout Code') {
             steps {
                 script {
