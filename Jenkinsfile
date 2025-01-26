@@ -69,21 +69,23 @@ pipeline {
         }
 
         stage('Deploy Containers') {
-            when {
-                expression { env.DEPLOY_STATUS == 'good' }
-            }
-            steps {
-                script {
-                    echo "Cleaning up any conflicting networks..."
-                    sh """
-                    docker network ls | grep container-files_container_network && \
-                    docker network rm container-files_container_network || echo 'No existing network to remove'
-                    """
-                    echo "Deploying production containers..."
-                    sh "docker-compose -f ${CONTAINER_FILES_PATH}/docker-compose.yml up -d"
-                }
-            }
+    when {
+        expression { env.DEPLOY_STATUS == 'good' }
+    }
+    steps {
+        script {
+            echo "Cleaning up any conflicting networks..."
+            sh """
+            if docker network ls | grep -q 'container-files_container_network'; then
+                docker network rm container-files_container_network
+            fi
+            """
+            echo "Deploying production containers..."
+            sh "docker-compose -f /home/fypuser/fyp/Jingyi/container-files/docker-compose.yml up -d"
         }
+    }
+}
+
 
         stage('Rollback') {
             when {
